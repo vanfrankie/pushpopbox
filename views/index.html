@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Push Pop Box</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="Frank Liu">
+
+    <link href="/css/bootstrap.css" rel="stylesheet">
+    <link href="/css/main.css" rel="stylesheet">
+<!--    <link href="./css/bootstrap-responsive.css" rel="stylesheet">-->
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+<!--    <link rel="shortcut icon" href="../assets/ico/favicon.ico">-->
+  </head>
+
+  <body>
+    <div class="container" >
+      <div class="well">
+        <h2>Push Pop Box</h2>
+        <p>This is a single page app to add, edit, and search notes. It is  written in javascript with jQuery and Bootstrap.</p>
+      </div>
+      <div class="alert-msg alert">
+      </div>
+      <div class="search-section form-inline">
+        <input id="search-input" class="span4" type="text" placeholder="Type something...">
+        <span id="search-clear" title="clear search"><i class="icon-remove-circle"></i></span>
+        <button id="search" class="btn" type="button">Search</button>
+        <button id="add" class="btn btn-primary" type="button">
+          Add
+        </button>
+      </div>
+      <div class="tags">
+      </div>
+      <div class="edit-section">
+        <div class="edit-item">
+          <div>
+            <textarea class="edit-item-content autocomplete='off' ">
+            </textarea>
+          </div>
+          <div class="edit-item-actions form-inline">
+            <button class="edit-action-save btn btn-mini btn-primary" type="button">Save</button>
+            <button class="edit-action-cancel btn btn-mini " type="button">Cancel</button>
+            <button class="edit-action-delete btn btn-mini btn-danger" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+      <div class="items-section">
+      </div>
+
+    </div> <!-- /container -->
+
+<!--    <script src="/js/bootstrap.js"></script>-->
+    <script type="text/javascript" src="/js/jquery.js"></script>
+    <script type="text/javascript" src="/js/main.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function() {
+        PPBox.app.start();
+      });
+    </script>
+
+  </body>
+</html>
