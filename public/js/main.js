@@ -31,17 +31,45 @@ PPBox.util = (function() {
 })(); 
 
 PPBox.model = (function() {
+
+  function contains(arr1, arr2) {
+    var num_found = 0;
+    $.each(arr2, function(idx2, v2) {
+      $.each(arr1, function(idx, v1) {
+        if (v1 == v2) {
+          ++num_found;
+          return false;
+        }
+      });
+    });
+    return num_found == arr2.length;
+  }
+
   return {
     loadData: function() {
       this._items = [{
         id: 2,
         text: "TODO: tags, pagination, saving and loading (backend)",
+        tags: [0]
       }, {
         id: 1,
         text: "908 - 4266 Grange St\nBurnaby V5H 1P1",
+        tags: [1, 2]
       }, {
         id: 0,
-        text:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec facilisis lacinia mi, ac faucibus elit condimentum ut. Aenean lacinia bibendum massa. Cras tincidunt tortor in sem luctus vel laoreet purus suscipit. In in odio sed lorem facilisis interdum. In condimentum varius libero, sit amet rhoncus massa tincidunt non. Fusce vehicula, sem nec facilisis feugiat, tellus ipsum venenatis risus, quis eleifend est diam in dolor. Donec id felis vitae ante dignissim mattis quis et sem. Vivamus dui metus, rhoncus consequat facilisis vitae, scelerisque vitae erat."
+        text:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec facilisis lacinia mi, ac faucibus elit condimentum ut. Aenean lacinia bibendum massa. Cras tincidunt tortor in sem luctus vel laoreet purus suscipit. In in odio sed lorem facilisis interdum. In condimentum varius libero, sit amet rhoncus massa tincidunt non. Fusce vehicula, sem nec facilisis feugiat, tellus ipsum venenatis risus, quis eleifend est diam in dolor. Donec id felis vitae ante dignissim mattis quis et sem. Vivamus dui metus, rhoncus consequat facilisis vitae, scelerisque vitae erat.",
+        tags: [2]
+      }];
+
+      this._tags = [{
+        id: 0,
+        text: 'todo',
+      }, {
+        id: 1,
+        text: 'locked',
+      }, {
+        id: 2,
+        text: 'misc'
       }];
 
       this._nextItemId = this._items.length;
@@ -55,6 +83,16 @@ PPBox.model = (function() {
       var matchedItems = [];
       $.each(this._items, function() {
         if (this.text.toLowerCase().indexOf(text) != -1) {
+          matchedItems.push(this);
+        }
+      });
+      return matchedItems;
+    },
+
+    filterItems: function(tagIds) {
+      var matchedItems = [];
+      $.each(this._items, function() {
+        if (contains(this.tags, tagIds)) {
           matchedItems.push(this);
         }
       });
@@ -82,6 +120,10 @@ PPBox.model = (function() {
         id: itemId,
         text: itemText
       };
+    },
+
+    getTags: function() {
+      return this._tags;
     },
 
     _getItemIdx: function(itemId) {
@@ -231,7 +273,6 @@ PPBox.itemsView = (function() {
       var matchedItems = this._model.searchItems(text);
       this._render(matchedItems);
 
-      PPBox.view.clearAlert();
       if (matchedItems.length == 0) {
         PPBox.view.info('No matching found.');
       }
@@ -242,6 +283,11 @@ PPBox.itemsView = (function() {
       PPBox.view.clearAlert();
     },
 
+    filterByTags: function(tagIds) {
+      var matchedItems = this._model.filterItems(tagIds);
+      this._render(matchedItems);
+    },
+
     _render: function(items) {
       var html = [];
       var self = this;
@@ -249,6 +295,8 @@ PPBox.itemsView = (function() {
         html.push(self._getItemTemplate(this))
       });
       this._jqContainer.html(html.join(''));
+
+      PPBox.view.clearAlert();
     },
 
     _addEventHandlers: function() {
@@ -288,6 +336,70 @@ PPBox.itemsView = (function() {
   };
 })();
 
+PPBox.tagsView = (function() {
+  var CLASS_SELECTED = 'label-warning';
+
+  return {
+
+    init: function(model) {
+      this._model = model;
+      this._jqContainer = $('.tags:first');
+
+      this._addEventHandlers();
+    },
+
+    render: function() {
+      this._render(this._model.getTags());
+    },
+
+    getSelectedTags: function(tags) {
+      var tagIds = [];
+      this._jqContainer.find('.' + CLASS_SELECTED).each(function() {
+          var tagId = this.id.match(/[0-9]+/)[0];
+          tagIds.push(tagId);
+      });
+      return tagIds;
+    },
+
+    _render: function(tags) {
+      var html = [];
+      var self = this;
+      $.each(tags, function() {
+        html.push(self._getTagTemplate(this))
+      });
+      this._jqContainer.html(html.join(''));
+    },
+
+    _addEventHandlers: function() {
+      var self = this;
+      this._jqContainer.click(function(evt) {
+        var elt = evt.target;
+        if (elt.className.indexOf('tag') != -1) {
+          $(elt).toggleClass(CLASS_SELECTED);
+          PPBox.view.filterByTags(self.getSelectedTags());
+        }
+      });
+    },
+
+    _getTagTemplate: function(tag) {
+      var id = tag.id;
+      return ( 
+        '<span class="tag label" id="tag-' + id + '">' +
+//          '<div class="tag-content">' + 
+                       //TODO
+//            PPBox.util.textToHtml(tag.text) + 
+            tag.text +
+//          '</div>' +
+        '</span>'
+      );
+    },
+
+
+    dummy: function() {
+    }
+  };
+})();
+
 PPBox.view = (function() {
   return {
 
@@ -296,6 +408,9 @@ PPBox.view = (function() {
 
       this._itemsView = PPBox.itemsView;
       this._itemsView.init(this._model);
+
+      this._tagsView = PPBox.tagsView;
+      this._tagsView.init(this._model);
 
       this._editView = PPBox.editView;
       this._editView.init();
@@ -307,29 +422,9 @@ PPBox.view = (function() {
       this._addEventHandlers();
     },
 
-    _addEventHandlers: function() {
-      var self = this;
-      var jqAdd = $('#add');
-      jqAdd.click(function() {
-        self._editView.add();
-      });
-
-      var jqSearch = $('#search');
-      jqSearch.click(function() {
-        self._search();
-      });
-
-      this._jqSearchInput.change(function() {
-        self._search();
-      });
-
-      this._jqSearchClear.click(function() {
-        self._clearSearch();
-      });
-    },
-
     render: function() {
       this._itemsView.render();
+      this._tagsView.render();
     },
 
     getItemText: function(itemId) {
@@ -366,6 +461,31 @@ PPBox.view = (function() {
       this._jqAlert.html(content).show();
     },
 
+    filterByTags: function(tagIds) {
+      this._itemsView.filterByTags(tagIds);
+    },
+
+    _addEventHandlers: function() {
+      var self = this;
+      var jqAdd = $('#add');
+      jqAdd.click(function() {
+        self._editView.add();
+      });
+
+      var jqSearch = $('#search');
+      jqSearch.click(function() {
+        self._search();
+      });
+
+      this._jqSearchInput.change(function() {
+        self._search();
+      });
+
+      this._jqSearchClear.click(function() {
+        self._clearSearch();
+      });
+    },
+
     _search : function() {
       var searchText = this._jqSearchInput.val();
       this._itemsView.search(searchText);
@@ -387,7 +507,6 @@ PPBox.app = (function() {
     start: function() {
       this._loadModel();
       this._renderView();
-
     },
 
     _loadModel: function() {
