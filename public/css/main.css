@@ -11,9 +11,11 @@
   display: none;
 }
 
-#search-clear {
-  margin-left: -20px;
-  position: relative;
+#search-input {
+  width: 300px;
+}
+
+#search {
   cursor: pointer;
 }
 
