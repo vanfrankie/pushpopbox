@@ -11,16 +11,16 @@
   display: none;
 }
 
-#search-input {
-  width: 300px;
+#top-input {
+  width: 310px;
 }
 
-#search {
+#top-input-btn {
   cursor: pointer;
 }
 
-#add {
-  margin-left: 30px;
+#new-btn {
+  margin-left: 20px;
 }
 
 .edit-section {
@@ -55,6 +55,7 @@
 }
 
 .item {
+  color: #000;
   border: 1px solid #CCC;
   padding: 10px;
   margin-bottom: 5px;
@@ -71,4 +72,16 @@
   cursor: pointer;
 }
 
+.deactive .item {
+  color: #999;
+  background-color: #EEE;
+}
 
+.deactive .item-action {
+  display: none;
+}
+
+.deactive .highlight-item {
+  color: #000;
+  background-color: #FFFFF0;
+}

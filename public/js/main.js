@@ -1,6 +1,6 @@
-PPBox = {};
+App = {};
 
-PPBox.util = (function() {
+App.util = (function() {
 
   var SPECIAL_CHARS = [
     //DONOT change the order
@@ -30,7 +30,7 @@ PPBox.util = (function() {
   };
 })(); 
 
-PPBox.model = (function() {
+App.model = (function() {
   var _items;
   var _tags;
   var _nextItemId;
@@ -148,7 +148,7 @@ PPBox.model = (function() {
 })(); 
 
 
-PPBox.editView = (function() {
+App.editView = (function() {
   var STATE_NONE = 0;
   var STATE_ADD = 1;
   var STATE_EDIT = 2;
@@ -156,6 +156,7 @@ PPBox.editView = (function() {
   var _state;
   var _itemId;
 
+  var _jqNew;
   var _jqContainer;
   var _jqEditContent;
   var _jqSave;
@@ -164,20 +165,22 @@ PPBox.editView = (function() {
 
   var _reset = function() {
     _state = STATE_NONE;
-    _jqContainer.hide();
-    PPBox.view.clearAlert();
+//    _jqContainer.hide();
+    _jqContainer.slideUp();
+    _jqNew.removeAttr('disabled');
+    App.view.doneEdit();
   };
 
   var _warn = function(content) {
-    PPBox.view.warn('<strong>Warning</strong> Please save or cacnel your current edit first');
+    App.view.warn('<strong>Warning</strong> Please save or cacnel your current edit first');
   };
 
   var _save = function() {
     var text = _jqEditContent.val();
     if (_state == STATE_ADD) {
-      PPBox.view.addItem(text);
+      App.view.addItem(text);
     } else {
-      PPBox.view.saveItem(_itemId, text);
+      App.view.saveItem(_itemId, text);
     }
     _reset();
   };
@@ -187,14 +190,30 @@ PPBox.editView = (function() {
   };
 
   var _delete = function() {
-    PPBox.view.deleteItem(_itemId);
+    App.view.deleteItem(_itemId);
     _reset();
+  };
+
+  var _add = function() {
+    if (_state == STATE_NONE) {
+      _state = STATE_ADD;
+      _jqEditContent.val('');
+      _jqDelete.attr('disabled', 'disabled');
+//      _jqContainer.show();
+      _jqContainer.slideDown();
+      _jqEditContent.focus();
+      _jqNew.attr('disabled', 'disabled');
+      App.view.highlight(null);
+    } else {
+      _warn();
+    }
   };
 
   return {
     init: function() {
       _state = STATE_NONE;
 
+      _jqNew = $('#new-btn');
       _jqContainer = $('.edit-item:first');
       _jqEditContent = _jqContainer.find('.edit-item-content:first');
       _jqSave = _jqContainer.find('.edit-action-save:first');
@@ -212,29 +231,23 @@ PPBox.editView = (function() {
       _jqDelete.click(function() {
         _delete();
       });
+
+      _jqNew.click(function() {
+        _add();
+      });
     },
 
-    add: function() {
-      if (_state == STATE_NONE) {
-        _state = STATE_ADD;
-        _jqEditContent.val('');
-        _jqDelete.attr('disabled', 'disabled');
-        _jqContainer.show();
-        _jqEditContent.focus();
-      } else {
-        _warn();
-      }
-    },
-
-    edit: function(itemId) {
+    startEdit: function(itemId) {
       if (_state == STATE_NONE) {
         _state = STATE_EDIT;
         _itemId = itemId;
-        var itemText = PPBox.view.getItemText(itemId);
+        var itemText = App.view.getItemText(itemId);
         _jqEditContent.val(itemText);
         _jqDelete.removeAttr('disabled');
-        _jqContainer.show();
+        _jqContainer.slideDown();
         _jqEditContent.focus();
+        _jqNew.attr('disabled', 'disabled');
+        App.view.highlight(itemId);
       } else {
         _warn();
       }
@@ -246,7 +259,7 @@ PPBox.editView = (function() {
 })();
 this.
 
-PPBox.itemsView = (function() {
+App.itemsView = (function() {
   var _model;
   var _jqContainer;
 
@@ -257,7 +270,7 @@ PPBox.itemsView = (function() {
     });
     _jqContainer.html(html.join(''));
 
-    PPBox.view.clearAlert();
+    App.view.clearAlert();
   };
 
   var _addEventHandlers = function() {
@@ -265,7 +278,7 @@ PPBox.itemsView = (function() {
       var klass = evt.target.className;
       if (klass.indexOf('item-action-') != -1) {
         var id = klass.match(/[0-9]+/)[0];
-        PPBox.view.editItem(id);
+        App.view.editItem(id);
       }
     });
   };
@@ -283,7 +296,7 @@ PPBox.itemsView = (function() {
     return ( 
       '<div class="item" id="item-' + id + '">' +
         '<div class="item-content">' + 
-          PPBox.util.textToHtml(item.text) + 
+          App.util.textToHtml(item.text) + 
         '</div>' +
         '<div class="item-action" title="edit">' +
           '<i class="icon-edit item-action-' + id + '"></i>' +
@@ -313,12 +326,24 @@ PPBox.itemsView = (function() {
 
     saveItem: function(itemId, itemText) {
       _model.saveItem(itemId, itemText);
-      _jqItemContent(itemId).html(PPBox.util.textToHtml(itemText));
+      _jqItemContent(itemId).html(App.util.textToHtml(itemText));
     },
 
     deleteItem: function(itemId) {
       _model.deleteItem(itemId);
       _jqItem(itemId).remove();
+    },
+
+    highlight: function(itemId) {
+      _jqContainer.addClass('deactive');
+      if (itemId) {
+        _jqItem(itemId).addClass('highlight-item');
+      }
+    },
+
+    clearHighlight: function() {
+      _jqContainer.removeClass('deactive');
+      _jqContainer.find('.highlight-item').removeClass('highlight-item');
     },
 
     getItemContent: function(itemId) {
@@ -331,13 +356,13 @@ PPBox.itemsView = (function() {
       _render(matchedItems);
 
       if (matchedItems.length == 0) {
-        PPBox.view.info('No matching found.');
+        App.view.info('No matching found.');
       }
     },
 
     clearSearch : function() {
       this.render();
-      PPBox.view.clearAlert();
+      App.view.clearAlert();
     },
 
     filterByTags: function(tagIds) {
@@ -350,7 +375,7 @@ PPBox.itemsView = (function() {
   };
 })();
 
-PPBox.tagsView = (function() {
+App.tagsView = (function() {
   var CLASS_SELECTED = 'label-warning';
 
   var _model;
@@ -378,7 +403,7 @@ PPBox.tagsView = (function() {
       var elt = evt.target;
       if (elt.className.indexOf('tag') != -1) {
         $(elt).toggleClass(CLASS_SELECTED);
-        PPBox.view.filterByTags(_getSelectedTags());
+        App.view.filterByTags(_getSelectedTags());
       }
     });
   };
@@ -389,7 +414,7 @@ PPBox.tagsView = (function() {
         '<span class="tag label" id="tag-' + id + '">' +
         //          '<div class="tag-content">' + 
         //TODO
-        //            PPBox.util.textToHtml(tag.text) + 
+        //            App.util.textToHtml(tag.text) + 
         tag.text +
         //          '</div>' +
         '</span>'
@@ -414,65 +439,67 @@ PPBox.tagsView = (function() {
   };
 })();
 
-PPBox.view = (function() {
+App.topInputView = (function() {
+  var _jqInput;
+  var _jqInputBtn;
+
+  var _search = function() {
+    var searchText = _jqInput.val();
+    _itemsView.search(searchText);
+  };
+
+  var _clearSearch = function() {
+    _jqInput.val('');
+    _itemsView.clearSearch();
+  };
+
+  return {
+
+    init: function() {
+      _jqInput = $('#top-input');
+      _jqInputBtn = $('#top-input-btn');
+
+      _jqInputBtn.click(function() {
+        _search();
+      });
+
+      _jqInput.change(function() {
+        _search();
+      });
+    },
+
+    dummy: function() {
+    }
+  };
+})();
+
+
+App.view = (function() {
   var _model;
   var _itemsView;
   var _tagsView;
   var _editView;
 
   var _jqAlert;
-  var _jqSearchInput;
-  var _jqSearchClear;
-
-  var _addEventHandlers = function() {
-    var jqAdd = $('#add');
-    jqAdd.click(function() {
-      _editView.add();
-    });
-
-    var jqSearch = $('#search');
-    jqSearch.click(function() {
-      _search();
-    });
-
-    _jqSearchInput.change(function() {
-      _search();
-    });
-
-    _jqSearchClear.click(function() {
-      _clearSearch();
-    });
-  };
-
-  var _search = function() {
-    var searchText = _jqSearchInput.val();
-    _itemsView.search(searchText);
-  };
-
-  var _clearSearch = function() {
-    _jqSearchInput.val('');
-    _itemsView.clearSearch();
-  };
 
   return {
 
     init: function(model) {
       _model = model;
 
-      _itemsView = PPBox.itemsView;
+      _topInput = App.topInputView;
+      _topInput.init();
+
+      _itemsView = App.itemsView;
       _itemsView.init(_model);
 
-      _tagsView = PPBox.tagsView;
+      _tagsView = App.tagsView;
       _tagsView.init(_model);
 
-      _editView = PPBox.editView;
+      _editView = App.editView;
       _editView.init();
 
       _jqAlert = $('.alert-msg:first');
-      _jqSearchInput = $('#search-input');
-      _jqSearchClear = $('#search-clear');
-
-      _addEventHandlers();
     },
 
     render: function() {
@@ -481,11 +508,15 @@ PPBox.view = (function() {
     },
 
     getItemText: function(itemId) {
-      return PPBox.util.htmlToText(_itemsView.getItemContent(itemId));
+      return App.util.htmlToText(_itemsView.getItemContent(itemId));
     },
 
     editItem: function(itemId) {
-      _editView.edit(itemId);
+      _editView.startEdit(itemId);
+    },
+
+    highlight: function(itemId) {
+      _itemsView.highlight(itemId);
     },
 
     deleteItem: function(itemId) {
@@ -502,6 +533,11 @@ PPBox.view = (function() {
 
     clearAlert: function() {
       _jqAlert.html('').hide();
+    },
+
+    doneEdit: function() {
+//      this.clearAlert();
+      _itemsView.clearHighlight();
     },
 
     warn: function(content) {
@@ -523,27 +559,25 @@ PPBox.view = (function() {
   };
 })();
 
-PPBox.app = (function() {
+App.main = (function() {
+  var _model;
 
   var _loadModel = function() {
-    _model = PPBox.model;
+    _model = App.model;
     _model.loadData();
   };
 
   var _renderView = function() {
-    _view = PPBox.view;
+    _view = App.view;
     _view.init(_model);
     _view.render();
   };
 
   return {
 
-    start: function() {
+    run: function() {
       _loadModel();
       _renderView();
-    },
-
-    dummy: function() {
     }
   };
 })();

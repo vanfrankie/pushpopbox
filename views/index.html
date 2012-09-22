@@ -27,12 +27,12 @@
       </div>
       <div class="alert-msg alert">
       </div>
-      <div class="search-section form-search">
+      <div class="top-section form-search">
         <div class="input-append">
-          <input id="search-input" type="text" class="search-query"  placeholder="Search...">
-          <span id="search" title="search" class="add-on"><i class="icon-search"></i></span>
+          <input id="top-input" type="text" class="search-query"  placeholder="Search...">
+          <span id="top-input-btn" title="search" class="add-on"><i class="icon-search"></i></span>
         </div>
-        <button id="add" class="btn btn-primary" type="button">
+        <button id="new-btn" class="btn btn-primary" type="button">
           New
         </button>
       </div>
@@ -47,9 +47,9 @@
             </textarea>
           </div>
           <div class="edit-item-actions form-inline">
-            <button class="edit-action-save btn btn-mini btn-primary" type="button">Save</button>
-            <button class="edit-action-cancel btn btn-mini " type="button">Cancel</button>
-            <button class="edit-action-delete btn btn-mini btn-danger" type="button">Delete</button>
+            <button class="edit-action-save btn btn-small btn-primary" type="button">Save</button>
+            <button class="edit-action-cancel btn btn-small " type="button">Cancel</button>
+            <button class="edit-action-delete btn btn-small btn-danger" type="button">Delete</button>
           </div>
         </div>
       </div>
@@ -63,7 +63,7 @@
     <script type="text/javascript" src="/js/main.js"></script>
     <script type="text/javascript">
       $(document).ready(function() {
-        PPBox.app.start();
+        App.main.run();
       });
     </script>
 
