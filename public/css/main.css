@@ -7,23 +7,23 @@
           border-radius: 8px;
 }
 
-.alert-msg {
+#alert-msg {
   display: none;
 }
 
-#top-input {
+.search-input {
   width: 310px;
 }
 
-#top-input-btn {
+.search-input-btn {
   cursor: pointer;
 }
 
-#new-btn {
+#add-btn {
   margin-left: 20px;
 }
 
-.edit-section {
+#edit-view {
   margin: 5px 0;
 }
 
@@ -42,7 +42,6 @@
   width: 440px;
   text-align: center;
 }
-
 
 .tags {
   padding: 5px;

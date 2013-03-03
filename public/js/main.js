@@ -1,583 +1,377 @@
-App = {};
+PushPopBox = (function() {
+  "use strict";
 
-App.util = (function() {
+  var util = (function() {
+    var $alertMsg = $('#alert-msg');
 
-  var SPECIAL_CHARS = [
-    //DONOT change the order
-    ['&', '&amp;'],
-    ['<', '&lt;'],
-    ['>', '&gt;'],
-//    [' ', '&nbsp;'],
-    ['\n', '<br>']
-  ];
+    return { 
+      parseInt: function(str) {
+        return parseInt(str, 10);
+      },
 
-  return { 
-    textToHtml: function(text) {
-      var html = text;
-      jQuery.each(SPECIAL_CHARS, function() {
-        html = html.replace(new RegExp(this[0], 'g'), this[1]);
-      });
-      return html;
-    },
-    
-    htmlToText: function(html) {
-      var text = html;
-      jQuery.each(SPECIAL_CHARS, function() {
-        text = text.replace(new RegExp(this[1], 'g'), this[0]);
-      });
-      return text;
-    }
-  };
-})(); 
+      showAlert: function(msg, type) {
+//        type || (type = 'info');
+        $alertMsg.html(msg).show();
+      },
 
-App.model = (function() {
-  var _items;
-  var _tags;
-  var _nextItemId;
+      clearAlert: function() {
+        $alertMsg.empty().hide();
+      }
+    };
+  })(); 
 
-  var _getItemIdx = function(itemId) {
-    var itemIdx = -1;
-    $.each(_items, function(idx) {
-      itemIdx = idx;
-      return this.id != itemId;
-    });
-    return itemIdx;
-  };
-
-  var _getNextItemId = function() {
-    return _nextItemId++;
-  };
-
-  var _contains = function(arr1, arr2) {
-    var num_found = 0;
-    $.each(arr2, function(idx2, v2) {
-      $.each(arr1, function(idx, v1) {
-        if (v1 == v2) {
-          ++num_found;
-          return false;
-        }
-      });
-    });
-    return num_found == arr2.length;
-  };
-
-  return {
+  var model = _.extend({
     loadData: function() {
-      _items = [{
-        id: 2,
-        text: "TODO: tags, pagination, saving and loading (backend)",
-        tags: [0]
-      }, {
-        id: 1,
-        text: "908 - 4266 Grange St\nBurnaby V5H 1P1",
-        tags: [1, 2]
-      }, {
-        id: 0,
-        text:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec facilisis lacinia mi, ac faucibus elit condimentum ut. Aenean lacinia bibendum massa. Cras tincidunt tortor in sem luctus vel laoreet purus suscipit. In in odio sed lorem facilisis interdum. In condimentum varius libero, sit amet rhoncus massa tincidunt non. Fusce vehicula, sem nec facilisis feugiat, tellus ipsum venenatis risus, quis eleifend est diam in dolor. Donec id felis vitae ante dignissim mattis quis et sem. Vivamus dui metus, rhoncus consequat facilisis vitae, scelerisque vitae erat.",
-        tags: [2]
-      }];
+      this._items = [
+        {id: 2, text: "TODO: Saving and loading data (backend), Add note with tags, Search&Tag", tags: [0]}, 
+        {id: 1, text: "4266 Grange St\nBurnaby BC", tags: [1, 2]}, 
+        {id: 0, text:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec facilisis lacinia mi, ac faucibus elit condimentum ut. Aenean lacinia bibendum massa. Cras tincidunt tortor in sem luctus vel laoreet purus suscipit. In in odio sed lorem facilisis interdum. In condimentum varius libero, sit amet rhoncus massa tincidunt non. Fusce vehicula, sem nec facilisis feugiat, tellus ipsum venenatis risus, quis eleifend est diam in dolor. Donec id felis vitae ante dignissim mattis quis et sem. Vivamus dui metus, rhoncus consequat facilisis vitae, scelerisque vitae erat.", tags: [2]}
+      ];
 
-      _tags = [{
-        id: 0,
-        text: 'todo',
-      }, {
-        id: 1,
-        text: 'locked',
-      }, {
-        id: 2,
-        text: 'misc'
-      }];
+      this._tags = [
+        {id: 0, text: 'todo',}, 
+        {id: 1, text: 'personal',}, 
+        {id: 2, text: 'misc'}
+      ];
 
-      _nextItemId = _items.length;
+      this._nextItemId = this._items.length;
     },
 
     getItems: function() {
-      return _items;
+      return this._items;
+    },
+
+    getTags: function() {
+      return this._tags;
+    },
+
+    getItemText: function(itemId) {
+      var idx = this._getItemIdx(itemId);
+      return this._items[idx].text;
     },
 
     searchItems: function(text) {
-      var matchedItems = [];
-      $.each(_items, function() {
-        if (this.text.toLowerCase().indexOf(text) != -1) {
-          matchedItems.push(this);
-        }
+      text = text.toLowerCase();
+      var matchedItems = _.filter(this._items, function(item) {
+        return item.text.toLowerCase().indexOf(text) != -1;
       });
       return matchedItems;
     },
 
     filterItems: function(tagIds) {
-      var matchedItems = [];
-      $.each(_items, function() {
-        if (_contains(this.tags, tagIds)) {
-          matchedItems.push(this);
-        }
+      var matchedItems = _.filter(this._items, function(item) {
+        return _.intersection(item.tags, tagIds).length == tagIds.length;
       });
       return matchedItems;
     },
 
-    deleteItem: function(itemId) {
-      var idx = _getItemIdx(itemId);
-      _items.splice(idx, 1);
+    removeItem: function(itemId) {
+      this._ajax('remove', itemId, function(response) {
+        var idx = this._getItemIdx(itemId);
+        this._items.splice(idx, 1);
+        this.trigger('change:items');
+      });
     },
 
     addItem: function(itemText) {
-      var id = _getNextItemId();
-      var item = {
-        id: id,
-        text: itemText
-      };
-      _items.splice(0, 0, item);
-      return item;
+      this._ajax('add', itemText, function(response) {
+        var id = this._getNextItemId();//should get id from response
+        var item = {
+          id: id,
+          text: itemText
+        };
+        this._items.unshift(item);
+        this.trigger('change:items');
+      });
     },
 
     saveItem: function(itemId, itemText) {
-      var idx = _getItemIdx(itemId);
-      _items[idx] = {
+      var item = {
         id: itemId,
         text: itemText
       };
+      this._ajax('save', item, function(response) {
+        var idx = this._getItemIdx(itemId);
+        this._items[idx] = item;
+        this.trigger('change:items');
+      });
     },
 
-    getTags: function() {
-      return _tags;
+    _getItemIdx: function(itemId) {
+      for (var idx = 0; idx < this._items.length; ++idx) {
+        if (this._items[idx].id == itemId) {
+          return idx;
+        }
+      }
+      return -1;
     },
 
-    dummy: function() {
+    _getNextItemId: function() {
+      return this._nextItemId++;
+    },
+
+    _ajax: function(action, data, callback) {
+      //TODO: send action to the backend
+      var response = {};
+      callback && callback.call(this, response);
     }
-  };
-})(); 
+  }, Backbone.Events);
 
 
-App.editView = (function() {
-  var STATE_NONE = 0;
-  var STATE_ADD = 1;
-  var STATE_EDIT = 2;
+  var SearchView = Backbone.View.extend({
+    events: {
+      'change .search-input':	'_search',
+      'click .search-input-btn':	'_search'
+    },
 
-  var _state;
-  var _itemId;
+    initialize: function() {
+      this._$input = this.$('.search-input');
+    },
 
-  var _jqNew;
-  var _jqContainer;
-  var _jqEditContent;
-  var _jqSave;
-  var _jqCancel;
-  var _jqDelete;  
-
-  var _reset = function() {
-    _state = STATE_NONE;
-//    _jqContainer.hide();
-    _jqContainer.slideUp();
-    _jqNew.removeAttr('disabled');
-    App.view.doneEdit();
-  };
-
-  var _warn = function(content) {
-    App.view.warn('<strong>Warning</strong> Please save or cacnel your current edit first');
-  };
-
-  var _save = function() {
-    var text = _jqEditContent.val();
-    if (_state == STATE_ADD) {
-      App.view.addItem(text);
-    } else {
-      App.view.saveItem(_itemId, text);
+    _search: function() {
+      this.trigger('search', $.trim(this._$input.val()));
     }
-    _reset();
-  };
+  });
 
-  var _cancel = function() {
-    _reset();
-  };
 
-  var _delete = function() {
-    App.view.deleteItem(_itemId);
-    _reset();
-  };
+  var TagsView = Backbone.View.extend({
+    events: {
+      'click .tag':	'_clickTag'
+    },
 
-  var _add = function() {
-    if (_state == STATE_NONE) {
-      _state = STATE_ADD;
-      _jqEditContent.val('');
-      _jqDelete.attr('disabled', 'disabled');
-//      _jqContainer.show();
-      _jqContainer.slideDown();
-      _jqEditContent.focus();
-      _jqNew.attr('disabled', 'disabled');
-      App.view.highlight(null);
-    } else {
-      _warn();
-    }
-  };
+    initialize: function() {
+      this._selectedCssClass = 'label-warning';
+      this.render();
+    },
 
-  return {
-    init: function() {
-      _state = STATE_NONE;
+    render: function() {
+      this.$el.html(this._tagsT({tags: model.getTags()}));
+    },
 
-      _jqNew = $('#new-btn');
-      _jqContainer = $('.edit-item:first');
-      _jqEditContent = _jqContainer.find('.edit-item-content:first');
-      _jqSave = _jqContainer.find('.edit-action-save:first');
-      _jqCancel = _jqContainer.find('.edit-action-cancel:first');
-      _jqDelete = _jqContainer.find('.edit-action-delete:first');
+    _clickTag: function(evt) {
+      $(evt.currentTarget).toggleClass(this._selectedCssClass);
+      this.trigger('filterByTags', this._getSelectedTags());
+    },
 
-      _jqSave.click(function() {
-        _save();
+    _getSelectedTags: function() {
+      var tagIds = [];
+      this.$('.' + this._selectedCssClass).each(function() {
+        var tagId = util.parseInt($(this).attr('data-id'));
+        tagIds.push(tagId);
       });
+      return tagIds;
+    },
 
-      _jqCancel.click(function() {
-        _cancel();
-      });
+    _tagsT: _.template(
+      '<% _.each(tags, function(tag) { %>' +
+        '<span class="tag label" data-id="<%- tag.id %>">' +
+          '<%- tag.text %>' +
+        '</span>'+
+      '<% }); %>'
+    )
+  });
 
-      _jqDelete.click(function() {
-        _delete();
-      });
 
-      _jqNew.click(function() {
-        _add();
+  var EditItemView = Backbone.View.extend({
+    events: {
+      'click .edit-action-save':	'_save',
+      'click .edit-action-cancel':	'_cancel',
+      'click .edit-action-delete':	'_remove'
+    },
+
+    initialize: function() {
+      this._state = 'none';
+
+      this._$editContent = this.$('.edit-item-content');
+      this._$removeBtn = this.$('.edit-action-delete');
+
+      var self = this;
+      this._$addBtn = $('#add-btn').click(function() {
+        self._add();
       });
     },
 
     startEdit: function(itemId) {
-      if (_state == STATE_NONE) {
-        _state = STATE_EDIT;
-        _itemId = itemId;
-        var itemText = App.view.getItemText(itemId);
-        _jqEditContent.val(itemText);
-        _jqDelete.removeAttr('disabled');
-        _jqContainer.slideDown();
-        _jqEditContent.focus();
-        _jqNew.attr('disabled', 'disabled');
-        App.view.highlight(itemId);
+      if (this._state == 'none') {
+        this._state = 'edit';
+        this._itemId = itemId;
+        var itemText = model.getItemText(itemId);
+        this._$editContent.val(itemText);
+        this._$removeBtn.removeAttr('disabled');
+        this.$el.slideDown();
+        this._$editContent.focus();
+        this._$addBtn.attr('disabled', 'disabled');
+        this.trigger('editing', itemId);
       } else {
-        _warn();
+        this._warn();
       }
     },
 
-    dummy: function() {
-    }
-  };
-})();
-this.
-
-App.itemsView = (function() {
-  var _model;
-  var _jqContainer;
-
-  var _render = function(items) {
-    var html = [];
-    $.each(items, function() {
-      html.push(_getItemTemplate(this))
-    });
-    _jqContainer.html(html.join(''));
-
-    App.view.clearAlert();
-  };
-
-  var _addEventHandlers = function() {
-    _jqContainer.click(function(evt) {
-      var klass = evt.target.className;
-      if (klass.indexOf('item-action-') != -1) {
-        var id = klass.match(/[0-9]+/)[0];
-        App.view.editItem(id);
+    _add: function() {
+      if (this._state == 'none') {
+        this._state = 'add';
+        this._$editContent.val('');
+        this._$removeBtn.attr('disabled', 'disabled');
+        this.$el.slideDown();
+        this._$editContent.focus();
+        this._$addBtn.attr('disabled', 'disabled');
+        this.trigger('adding');
+      } else {
+        this._warn();
       }
-    });
-  };
+    },
 
-  var _jqItem = function(itemId) {
-    return $('#item-' + itemId);
-  };
+    _warn: function(content) {
+      util.showAlert('<strong>Warning</strong> Please save or cacnel your current edit first');
+    },
 
-  var _jqItemContent = function(itemId) {
-    return _jqItem(itemId).find('.item-content:first');
-  };
+    _save: function() {
+      var text = this._$editContent.val();
+      if (this._state == 'add') {
+        model.addItem(text);
+      } else {
+        model.saveItem(this._itemId, text);
+      }
+      this._reset();
+    },
 
-  var _getItemTemplate = function(item) {
-    var id = item.id;
-    return ( 
-      '<div class="item" id="item-' + id + '">' +
-        '<div class="item-content">' + 
-          App.util.textToHtml(item.text) + 
-        '</div>' +
-        '<div class="item-action" title="edit">' +
-          '<i class="icon-edit item-action-' + id + '"></i>' +
-        '</div>' + 
-      '</div>'
-    );
-  };
+    _cancel: function() {
+      this._reset();
+    },
+
+    _remove: function() {
+      model.removeItem(this._itemId);
+      this._reset();
+    },
+
+    _reset: function() {
+      this._state = 'none';
+      this.$el.slideUp();
+      this._$addBtn.removeAttr('disabled');
+      this.trigger('done');
+    }
+  });
 
 
-  return {
 
-    init: function(model) {
-      _model = model;
-      _jqContainer = $('.items-section:first');
+  var ItemsView = Backbone.View.extend({
+    events: {
+      'click .item-action':	'_edit'
+    },
 
-      _addEventHandlers();
+    initialize: function() {
+      this.render();
+      model.on('change:items', this.render, this);
     },
 
     render: function() {
-      _render(_model.getItems());
-    },
-
-    addItem: function(itemText) {
-      var item = _model.addItem(itemText);
-      _jqContainer.prepend(_getItemTemplate(item));
-    },
-
-    saveItem: function(itemId, itemText) {
-      _model.saveItem(itemId, itemText);
-      _jqItemContent(itemId).html(App.util.textToHtml(itemText));
-    },
-
-    deleteItem: function(itemId) {
-      _model.deleteItem(itemId);
-      _jqItem(itemId).remove();
+      this._render(model.getItems());
     },
 
     highlight: function(itemId) {
-      _jqContainer.addClass('deactive');
+      this.$el.addClass('deactive');
       if (itemId) {
-        _jqItem(itemId).addClass('highlight-item');
+        this.$('.item[data-item-id="' + itemId + '"]').first().addClass('highlight-item');
       }
     },
 
     clearHighlight: function() {
-      _jqContainer.removeClass('deactive');
-      _jqContainer.find('.highlight-item').removeClass('highlight-item');
-    },
-
-    getItemContent: function(itemId) {
-      return _jqItemContent(itemId).html();
+      this.$el.removeClass('deactive');
+      this.$el.find('.highlight-item').removeClass('highlight-item');
     },
 
     search: function(text) {
-      text = text.toLowerCase();
-      var matchedItems = _model.searchItems(text);
-      _render(matchedItems);
+      var matchedItems = model.searchItems(text);
+      this._render(matchedItems);
 
       if (matchedItems.length == 0) {
-        App.view.info('No matching found.');
+        util.showAlert('No matching found.');
       }
     },
 
     clearSearch : function() {
       this.render();
-      App.view.clearAlert();
+      util.clearAlert();
     },
 
     filterByTags: function(tagIds) {
-      var matchedItems = _model.filterItems(tagIds);
-      _render(matchedItems);
+      var matchedItems = model.filterItems(tagIds);
+      this._render(matchedItems);
     },
 
-    dummy: function() {
-    }
-  };
-})();
+    _render: function(items) {
+      this.$el.html(this._itemsT({items: items}));
+      util.clearAlert();
+    },
 
-App.tagsView = (function() {
-  var CLASS_SELECTED = 'label-warning';
+    _edit: function(evt) {
+      var id = $(evt.currentTarget).attr('data-item-id');
+      this.trigger('edit', id);
+    },
 
-  var _model;
-  var _jqContainer;
+    _itemsT: _.template(
+      '<% _.each(items, function(item) { %>' +
+        '<div class="item" data-item-id="<%= item.id %>">' +
+          '<div class="item-content">' + 
+            '<%- item.text %>' +
+          '</div>' +
+          '<div class="item-action" data-item-id="<%= item.id %>" title="edit">' +
+            '<i class="icon-edit"></i>' +
+          '</div>' + 
+        '</div>' +
+      '<% }); %>'
+    )
+  });
 
-  var _render = function(tags) {
-    var html = [];
-    $.each(tags, function() {
-      html.push(_getTagTemplate(this))
-    });
-    _jqContainer.html(html.join(''));
-  };
+  var app = (function() {
+    var searchView, 
+      tagsView,
+      editItemView,
+      itemsView;
 
-  var _getSelectedTags = function(tags) {
-    var tagIds = [];
-    _jqContainer.find('.' + CLASS_SELECTED).each(function() {
-        var tagId = this.id.match(/[0-9]+/)[0];
-        tagIds.push(tagId);
-    });
-    return tagIds;
-  };
+    var createViews = function() {
+      searchView = new SearchView({el: '#search-view'});
+      tagsView = new TagsView({el: '#edit-view .tags'});
+      editItemView = new EditItemView({el: '#edit-view .edit-item'});
+      itemsView = new ItemsView({el: '#items-view'});
+    };
 
-  var _addEventHandlers = function() {
-    _jqContainer.click(function(evt) {
-      var elt = evt.target;
-      if (elt.className.indexOf('tag') != -1) {
-        $(elt).toggleClass(CLASS_SELECTED);
-        App.view.filterByTags(_getSelectedTags());
+    var registerEvents = function() {
+      searchView.on('search', function(text) {
+        itemsView.search(text);
+      });
+
+      tagsView.on('filterByTags', function(tagIds) {
+        itemsView.filterByTags(tagIds);
+      });
+
+      editItemView.on('editing', function(itemId) {
+        itemsView.highlight(itemId);
+      });
+
+      editItemView.on('adding', function() {
+        itemsView.highlight(null);
+      });
+
+      editItemView.on('done', function() {
+        itemsView.clearHighlight();
+      });
+
+      itemsView.on('edit', function(itemId) {
+        editItemView.startEdit(itemId);
+      });
+    };
+
+    return {
+      init: function() {
+        model.loadData();
+        createViews();
+        registerEvents();
       }
-    });
-  };
-
-  var _getTagTemplate = function(tag) {
-    var id = tag.id;
-    return ( 
-        '<span class="tag label" id="tag-' + id + '">' +
-        //          '<div class="tag-content">' + 
-        //TODO
-        //            App.util.textToHtml(tag.text) + 
-        tag.text +
-        //          '</div>' +
-        '</span>'
-        );
-  };
+    };
+  })();
 
   return {
-
-    init: function(model) {
-      _model = model;
-      _jqContainer = $('.tags:first');
-
-      _addEventHandlers();
-    },
-
-    render: function() {
-      _render(_model.getTags());
-    },
-
-    dummy: function() {
-    }
-  };
-})();
-
-App.topInputView = (function() {
-  var _jqInput;
-  var _jqInputBtn;
-
-  var _search = function() {
-    var searchText = _jqInput.val();
-    _itemsView.search(searchText);
-  };
-
-  var _clearSearch = function() {
-    _jqInput.val('');
-    _itemsView.clearSearch();
-  };
-
-  return {
-
-    init: function() {
-      _jqInput = $('#top-input');
-      _jqInputBtn = $('#top-input-btn');
-
-      _jqInputBtn.click(function() {
-        _search();
-      });
-
-      _jqInput.change(function() {
-        _search();
-      });
-    },
-
-    dummy: function() {
-    }
-  };
-})();
-
-
-App.view = (function() {
-  var _model;
-  var _itemsView;
-  var _tagsView;
-  var _editView;
-
-  var _jqAlert;
-
-  return {
-
-    init: function(model) {
-      _model = model;
-
-      _topInput = App.topInputView;
-      _topInput.init();
-
-      _itemsView = App.itemsView;
-      _itemsView.init(_model);
-
-      _tagsView = App.tagsView;
-      _tagsView.init(_model);
-
-      _editView = App.editView;
-      _editView.init();
-
-      _jqAlert = $('.alert-msg:first');
-    },
-
-    render: function() {
-      _itemsView.render();
-      _tagsView.render();
-    },
-
-    getItemText: function(itemId) {
-      return App.util.htmlToText(_itemsView.getItemContent(itemId));
-    },
-
-    editItem: function(itemId) {
-      _editView.startEdit(itemId);
-    },
-
-    highlight: function(itemId) {
-      _itemsView.highlight(itemId);
-    },
-
-    deleteItem: function(itemId) {
-      _itemsView.deleteItem(itemId);
-    },
-
-    addItem: function(contentText) {
-      _itemsView.addItem(contentText);
-    },
-
-    saveItem: function(itemId, contentText) {
-      _itemsView.saveItem(itemId, contentText);
-    },
-
-    clearAlert: function() {
-      _jqAlert.html('').hide();
-    },
-
-    doneEdit: function() {
-//      this.clearAlert();
-      _itemsView.clearHighlight();
-    },
-
-    warn: function(content) {
-//      _jqAlert.removeClass('alert-info');
-      _jqAlert.html(content).show();
-    },
-
-    info: function(content) {
-//      _jqAlert.addClass('alert-info');
-      _jqAlert.html(content).show();
-    },
-
-    filterByTags: function(tagIds) {
-      _itemsView.filterByTags(tagIds);
-    },
-
-    dummy : function() {
-    }
-  };
-})();
-
-App.main = (function() {
-  var _model;
-
-  var _loadModel = function() {
-    _model = App.model;
-    _model.loadData();
-  };
-
-  var _renderView = function() {
-    _view = App.view;
-    _view.init(_model);
-    _view.render();
-  };
-
-  return {
-
-    run: function() {
-      _loadModel();
-      _renderView();
-    }
+    init: app.init
   };
 })();
